@@ -5,53 +5,77 @@ using UnityEngine;
 public class EnergyField : MonoBehaviour {
 
     public float maxEnergy = 50;
-    public float pixelsPerUnit = 100;
     public float maxEnergyPerSecond = 1;
 
     public Texture2D seedTexture;
-    [HideInInspector]
-    public Texture2D currentEnergy;
 
-    void Start () {
+    RenderTexture currentEnergy;
+    Texture2D energySample;
+    
+    const int threadsX = 32;
+    const int threadsY = 32;
+
+    void Awake () {
         if (seedTexture == null)
             return;
 
-        currentEnergy = new Texture2D(seedTexture.width, seedTexture.height, TextureFormat.RGBAFloat, false, true);
+        currentEnergy = new RenderTexture(seedTexture.width, seedTexture.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        currentEnergy.antiAliasing = 1;
+        currentEnergy.enableRandomWrite = true;
         currentEnergy.wrapMode = TextureWrapMode.Clamp;
-
-        //Start current energy at nothing
-        Color[] colors = currentEnergy.GetPixels();
-        for (int i = 0; i < colors.Length; i++) {
-            colors[i] = new Color(0,0,0,0);
-        }
+        currentEnergy.Create();
 
         //Set size of quad being rendered to
-        transform.localScale = new Vector3(seedTexture.width / pixelsPerUnit, seedTexture.height / pixelsPerUnit, 1);
+        transform.localScale = new Vector3(seedTexture.width, seedTexture.height, 1);
 
+        //Generate the initial state of the energy field texture
         Shader.SetGlobalFloat("_MaxEnergy", maxEnergy);
-    }
-	
-	// Update is called once per frame
-	void LateUpdate () {
-        if (currentEnergy == null)
-            return;
-
-        RenderTexture tempRT = RenderTexture.GetTemporary(currentEnergy.width, currentEnergy.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear, 1);
-        tempRT.enableRandomWrite = true;
-
-        SimManager.simShader.SetFloat("Unity_DeltaTime", Time.deltaTime * maxEnergyPerSecond);
+        SimManager.simShader.SetInt("tex_Width", seedTexture.width);
+        SimManager.simShader.SetInt("tex_Height", seedTexture.height);
         SimManager.simShader.SetFloat("Sim_MaxEnergy", maxEnergy);
-        SimManager.simShader.SetTexture(SimManager.SimKernel, "EnergyInput", seedTexture);
-        SimManager.simShader.SetTexture(SimManager.SimKernel, "Energy", currentEnergy);
-        SimManager.simShader.SetTexture(SimManager.SimKernel, "Output", tempRT);
+        
+        SimManager.simShader.SetTexture(SimManager.GenKernel, "Seed", seedTexture);
+        SimManager.simShader.SetTexture(SimManager.GenKernel, "Energy", currentEnergy);
+        SimManager.simShader.Dispatch(SimManager.GenKernel, (currentEnergy.width + threadsX - 1) / threadsX, (currentEnergy.height + threadsY - 1) / threadsY, 1);
 
-        SimManager.simShader.Dispatch(SimManager.SimKernel, tempRT.width / 32, tempRT.height / 32, 1);
+        //Set the initial state of the texture used for sampling
+        energySample = new Texture2D(seedTexture.width, seedTexture.height, TextureFormat.RGBAFloat, false, true);
 
-        RenderTexture.active = tempRT;
-        currentEnergy.ReadPixels(new Rect(0, 0, tempRT.width, tempRT.height), 0, 0);
-        currentEnergy.Apply();
+        RenderTexture.active = currentEnergy;
+        energySample.ReadPixels(new Rect(0, 0, currentEnergy.width, currentEnergy.height), 0, 0);
+        energySample.Apply();
+        RenderTexture.active = null;
 
         GetComponent<MeshRenderer>().material.mainTexture = currentEnergy;
-        RenderTexture.ReleaseTemporary(tempRT);
+    }
+	
+	void LateUpdate ()
+    {
+        //Update the energy texture each frame
+        //Red = current energy
+        //Green = energy added / second
+        //Blue = energy removed / second by critters
+        SimManager.simShader.SetFloat("Unity_DeltaTime", Time.deltaTime * maxEnergyPerSecond);
+        
+        SimManager.simShader.SetTexture(SimManager.SimKernel, "Energy", currentEnergy);
+
+        SimManager.simShader.Dispatch(SimManager.SimKernel, (currentEnergy.width + threadsX - 1) / threadsX, (currentEnergy.height + threadsY - 1) / threadsY, 1);
+
+        RenderTexture.active = currentEnergy;
+        energySample.ReadPixels(new Rect(0, 0, currentEnergy.width, currentEnergy.height), 0, 0);
+        energySample.Apply();
+        RenderTexture.active = null;
+    }
+
+    void OnApplicationQuit()
+    {
+        currentEnergy.Release();
+    }
+
+    public float GetEnergyAtPoint(Vector3 position) 
+    {
+        position.x = position.x / energySample.width + 0.5f;
+        position.y = position.y / energySample.height + 0.5f;
+        return energySample.GetPixelBilinear(position.x, position.y).r;
     }
 }
