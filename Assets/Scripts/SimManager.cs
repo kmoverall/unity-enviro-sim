@@ -36,6 +36,7 @@ public class SimManager : Singleton<SimManager> {
 
     void Update()
     {
+        _critters.Shuffle();
         for (int i = 0; i < _critters.Count; i++)
         {
             _critters[i].SimUpdate();
