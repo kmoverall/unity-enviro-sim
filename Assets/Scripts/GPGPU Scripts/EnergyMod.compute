@@ -1,6 +1,14 @@
-﻿
-#pragma kernel Generate
+﻿#pragma kernel Generate
 #pragma kernel TimeStep
+#pragma kernel ProcessCritters
+
+struct CritterData {
+	float2 position;
+	float health;
+	float maxConsumption;
+	float timeDrain;
+	float consumptionThisFrame;
+}
 
 Texture2D<float4> Seed;
 SamplerState samplerSeed;
@@ -20,6 +28,14 @@ void Generate (uint3 id : SV_DispatchThreadID)
 	Energy[id.xy] = color;
 }
 
+[numthreads(64,1,1)]
+void ProcessCritters (uint3 id : SV_DispatchThreadID)
+{
+	float4 color;
+	color = Energy.SampleLevel(MyLinearClampSampler, float2((float)id.x / tex_Width, (float)id.y / tex_Height), 0);
+
+}
+
 [numthreads(32,32,1)]
 void TimeStep (uint3 id : SV_DispatchThreadID)
 {
@@ -31,6 +47,7 @@ void TimeStep (uint3 id : SV_DispatchThreadID)
 	float4 color = Energy[id.xy];
 	color.r += Energy[id.xy].g * Unity_DeltaTime;
 	color.r -= Energy[id.xy].b * Unity_DeltaTime;
+	color.b = 0;
 	color.r = clamp(color.r, 0, Sim_MaxEnergy);
 	Energy[id.xy] = color;
 }

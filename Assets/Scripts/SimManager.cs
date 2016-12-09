@@ -21,8 +21,7 @@ public class SimManager : Singleton<SimManager> {
     int _genKernel;
     public static int GenKernel { get { return Instance._genKernel; } }
 
-    List<Critter> _critters;
-
+    List<CritterData> _critters;
 
     void Start() 
     {
@@ -36,14 +35,11 @@ public class SimManager : Singleton<SimManager> {
 
     void Update()
     {
-        _critters.Shuffle();
-        for (int i = 0; i < _critters.Count; i++)
-        {
-            _critters[i].SimUpdate();
-        }
+
     }
 
     public static void RegisterCritter(Critter c) {
-        Instance._critters.Add(c);
+        c.index = Instance._critters.Count;
+        Instance._critters.Add(c.data);
     }
 }

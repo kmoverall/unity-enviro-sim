@@ -11,6 +11,7 @@ public class EnergyField : MonoBehaviour {
 
     RenderTexture currentEnergy;
     Texture2D energySample;
+    Texture2D energyDrain;
     
     const int threadsX = 32;
     const int threadsY = 32;
@@ -54,7 +55,6 @@ public class EnergyField : MonoBehaviour {
         //Update the energy texture each frame
         //Red = current energy
         //Green = energy added / second
-        //Blue = energy removed / second by critters
         SimManager.simShader.SetFloat("Unity_DeltaTime", Time.deltaTime * maxEnergyPerSecond);
         
         SimManager.simShader.SetTexture(SimManager.SimKernel, "Energy", currentEnergy);
