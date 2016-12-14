@@ -8,12 +8,13 @@ struct CritterData {
 	float maxConsumption;
 	float timeDrain;
 	float consumptionThisFrame;
-}
+};
 
 Texture2D<float4> Seed;
 SamplerState samplerSeed;
 SamplerState MyLinearClampSampler;
 RWTexture2D<float4> Energy;
+RWStructuredBuffer<CritterData> Critters;
 
 int tex_Width, tex_Height;
 float Unity_DeltaTime;
@@ -31,9 +32,9 @@ void Generate (uint3 id : SV_DispatchThreadID)
 [numthreads(64,1,1)]
 void ProcessCritters (uint3 id : SV_DispatchThreadID)
 {
+	CritterData critter = Critters[id.x];
 	float4 color;
-	color = Energy.SampleLevel(MyLinearClampSampler, float2((float)id.x / tex_Width, (float)id.y / tex_Height), 0);
-
+	color = Energy.Load(float2((float)id.x / tex_Width, (float)id.y / tex_Height));
 }
 
 [numthreads(32,32,1)]
