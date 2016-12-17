@@ -14,8 +14,11 @@ public struct CritterData {
 
 public class Critter : MonoBehaviour {
 
+    [HideInInspector]
     public int index = -1;
+
     static float BaseHealth = 100;
+    public static float MaxHealth = 200;
 
     public CritterData data;
 
@@ -23,7 +26,8 @@ public class Critter : MonoBehaviour {
         SimManager.RegisterCritter(this);
 	}
 	
-	public void SimUpdate () {
-	    
+	public void Update () {
+        data = SimManager.Critters[index];
+        transform.position = data.position;
 	}
 }

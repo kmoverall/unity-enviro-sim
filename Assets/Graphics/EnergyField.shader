@@ -1,10 +1,8 @@
-﻿Shader "Unlit/EnergyField"
+﻿Shader "Hidden/Energy Field"
 {
 	Properties
 	{
-		[HideInInspector]	_MainTex ("Texture", 2D) = "white" {}
-		_FullColor ("Full Energy Color", Color) = (1,1,1,1)
-		_EmptyColor ("Empty Energy Color", Color) = (0,0,0,1)
+		_MainTex ("Texture", 2D) = "white" {}
 	}
 	SubShader
 	{
@@ -27,34 +25,29 @@
 
 			struct v2f
 			{
-				float4 vertex : SV_POSITION;
 				float2 uv : TEXCOORD0;
+				float4 vertex : SV_POSITION;
 			};
 
 			sampler2D _MainTex;
-			float4 _MainTex_ST;
-
-			fixed4 _FullColor;
-			fixed4 _EmptyColor;
-
 			uniform float _MaxEnergy;
+			uniform float _MaxEnergyRate;
+			uniform sampler2D _EnergySeed;
 			
 			v2f vert (appdata v)
 			{
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
-				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.uv = v.uv;
 				return o;
 			}
 			
-			fixed4 frag (v2f i) : SV_Target
+			float4 frag (v2f i) : SV_Target
 			{
-				// sample the texture
-				float energy = tex2D(_MainTex, i.uv).r;
-				energy /= _MaxEnergy;
-
-				fixed4 col = lerp(_EmptyColor, _FullColor, energy);
-				return col;
+				float eng = tex2D(_MainTex, i.uv);
+				eng += tex2D(_EnergySeed, i.uv) * _MaxEnergyRate * _Time.y;
+				eng = clamp(0, _MaxEnergy, eng);
+				return eng;
 			}
 			ENDCG
 		}
