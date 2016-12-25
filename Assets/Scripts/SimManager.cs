@@ -2,31 +2,42 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using System;
 using System.Collections;
 using System.Collections.Generic;
+
+[System.Serializable]
+public struct CritterData {
+    public Vector2 position;
+    public float health;
+    public float maxConsumption;
+    public float timeDrain;
+}
 
 public class SimManager : Singleton<SimManager> {
 	protected SimManager() { }
 
-    public ComputeShader _simShader;
-    public static ComputeShader simShader { get { return Instance._simShader; } }
+    public Texture2D critterSprite;
+    public float critterSize;
+    public Color critterColor;
 
-    int _simKernel;
-    public static int SimKernel { get { return Instance._simKernel; } }
+    public Shader critterShader;
+    Material critterMat;
+
+    public ComputeShader critterManager;
+    int appendKernel;
 
     public EnergyField _energyField;
     public static EnergyField Energy { get { return Instance._energyField; } }
+    
+    private ComputeBuffer critterDrawArgs;
+    private ComputeBuffer critterPoints;
 
-    CritterData[] _critters;
-    public static CritterData[] Critters { get { return Instance._critters; } }
+    Vector2[] debugArray;
 
-
-    const int threadsX = 32;
-    const int threadsY = 32;
-
-    int _critterCount = 0;
-
+    const int THREADS = 1024;
+    const int THREADS_X = 32;
+    const int THREADS_Y = 32;
+    const int MAX_CRITTERS = 20;
 
     void Awake() 
     {
@@ -34,48 +45,70 @@ public class SimManager : Singleton<SimManager> {
             _energyField = FindObjectOfType<EnergyField>();
         }
 
-        _critters = new CritterData[64];
-        
-        _simKernel = _simShader.FindKernel("TimeStep");
+        appendKernel = critterManager.FindKernel("AppendCritter");
 
-        //Set compute shader globals
-        simShader.SetInt("tex_Width", Energy.seedTexture.width);
-        simShader.SetInt("tex_Height", Energy.seedTexture.height);
-        simShader.SetFloat("Sim_MaxEnergy", Energy.maxEnergy);
-        simShader.SetFloat("Sim_MaxEnergyRate", Energy.maxEnergyPerSecond);
-        simShader.SetFloat("Sim_MaxHealth", Critter.MaxHealth);
+        debugArray = new Vector2[MAX_CRITTERS];
     }
 
-    void LateUpdate() 
+    void CreateResources() 
     {
-        simShader.SetFloat("Unity_DeltaTime", Time.deltaTime);
-
-        //Update the energy texture each frame
-        //Red = current energy
-        //Green = energy added / second
-        //Blue = energy removed / second
-        if (Critters.Length > 0) {
-            CritterData[] output = new CritterData[_critters.Length];
-
-            simShader.SetTexture(SimKernel, "Energy", Energy.currentEnergy);
-            ComputeBuffer critterBuffer = new ComputeBuffer(Critters.Length, 24);
-            critterBuffer.SetData(Instance._critters);
-            simShader.SetBuffer(SimKernel, "CritterData", critterBuffer);
-            simShader.Dispatch(SimKernel, Critters.Length / (threadsX * threadsY) + 1, 1, 1);
-            critterBuffer.GetData(output);
-            Instance._critters = output;
-            critterBuffer.Release();
+        if (critterDrawArgs == null) {
+            critterDrawArgs = new ComputeBuffer(1, 16, ComputeBufferType.IndirectArguments);
+            var args = new int[4];
+            args[0] = 0;
+            args[1] = 1;
+            args[2] = 0;
+            args[3] = 0;
+            critterDrawArgs.SetData(args);
+        }
+        if (critterPoints == null) {
+            critterPoints = new ComputeBuffer(MAX_CRITTERS, sizeof(float)*2, ComputeBufferType.Append);
+            critterPoints.ClearAppendBuffer();
+        }
+        if (critterMat == null) {
+            critterMat = new Material(critterShader);
+            critterMat.hideFlags = HideFlags.HideAndDontSave;
         }
     }
 
-    public static void RegisterCritter(Critter c) 
+    void OnRenderImage(RenderTexture src, RenderTexture dst) 
     {
-        c.index = Instance._critterCount;
-        if (Instance._critterCount >= Instance._critters.Length) 
-        {
-            Array.Resize(ref Instance._critters, Instance._critters.Length + 1024);
-        }
-        Instance._critters[Instance._critterCount] = c.data;
-        Instance._critterCount++;
+        if (!critterShader)
+            return;
+        CreateResources();
+
+        critterMat.SetTexture("_Sprite", critterSprite);
+        critterMat.SetFloat("_Size", critterSize);
+        critterMat.SetColor("_Color", critterColor);
+        critterMat.SetBuffer("_CritterPoints", critterPoints);
+
+        ComputeBuffer.CopyCount(critterPoints, critterDrawArgs, 0);
+        critterMat.SetPass(0);
+        Graphics.DrawProceduralIndirect(MeshTopology.Points, critterDrawArgs, 0);
+    }
+
+
+    private void ReleaseResources() 
+    {
+        if (critterDrawArgs != null) critterDrawArgs.Release(); critterDrawArgs = null;
+        if (critterPoints != null) critterPoints.Release(); critterPoints = null;
+        Object.DestroyImmediate(critterMat);
+    }
+
+    void OnDisable() {
+        ReleaseResources();
+    }
+
+    public void AddCritter(Vector2 position)
+    {
+        CreateResources();
+        critterManager.SetFloats("NewPosition", position.x, position.y);
+        critterManager.SetBuffer(appendKernel, "Positions", critterPoints);
+        critterManager.Dispatch(appendKernel, 1, 1, 1);
+    }
+
+    public void AddRandomCritter() 
+    {
+        AddCritter(new Vector2(Random.Range(-40.0f, 40.0f), Random.Range(-40.0f, 40.0f)));
     }
 }
