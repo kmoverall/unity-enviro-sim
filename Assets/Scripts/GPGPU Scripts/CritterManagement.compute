@@ -1,0 +1,13 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel AppendCritter
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+AppendStructuredBuffer<float2> Positions;
+float2 NewPosition;
+
+[numthreads(1,1,1)]
+void AppendCritter (uint3 id : SV_DispatchThreadID)
+{
+	Positions.Append(NewPosition);
+}

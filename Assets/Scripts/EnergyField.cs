@@ -20,6 +20,7 @@ public class EnergyField : MonoBehaviour {
             return;
 
         energyMat = new Material(energyShader);
+        energyMat.hideFlags = HideFlags.HideAndDontSave;
         
         currentEnergy = new RenderTexture(seedTexture.width, seedTexture.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         currentEnergy.antiAliasing = 1;
@@ -43,5 +44,6 @@ public class EnergyField : MonoBehaviour {
     void OnApplicationQuit()
     {
         currentEnergy.Release();
+        Object.DestroyImmediate(energyMat);
     }
 }

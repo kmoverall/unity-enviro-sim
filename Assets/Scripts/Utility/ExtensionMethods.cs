@@ -177,4 +177,24 @@ public static class ExtensionMethods
         var d = Vector3.Dot(point - pointOnLine, lineDirection);
         return pointOnLine + (lineDirection * d);
     }
+
+    //-------------------------------------------------------------------------//
+    // Compute Buffer Methods
+    //-------------------------------------------------------------------------//
+
+    public static void ClearAppendBuffer(this ComputeBuffer appendBuffer) {
+        // This resets the append buffer buffer to 0
+        var dummy1 = RenderTexture.GetTemporary(8, 8, 24, RenderTextureFormat.ARGB32);
+        var dummy2 = RenderTexture.GetTemporary(8, 8, 24, RenderTextureFormat.ARGB32);
+        var active = RenderTexture.active;
+
+        Graphics.SetRandomWriteTarget(1, appendBuffer);
+        Graphics.Blit(dummy1, dummy2);
+        Graphics.ClearRandomWriteTargets();
+
+        RenderTexture.active = active;
+
+        dummy1.Release();
+        dummy2.Release();
+    }
 }
