@@ -1,0 +1,21 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ProcessCritters
+
+struct CritterData {
+	float health;
+    float consumption;
+    float timeDrain;
+    float isAlive;
+};
+
+RWTexture2D<float4> EnergyField;
+RWStructuredBuffer<CritterData> Data;
+RWStructuredBuffer<float2> Positions;
+
+int2 Sim_EnergyFieldSize;
+
+[numthreads(1024,1,1)]
+void ProcessCritters (uint3 id : SV_DispatchThreadID)
+{
+	
+}

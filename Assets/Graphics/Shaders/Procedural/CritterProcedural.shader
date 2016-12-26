@@ -32,7 +32,7 @@
 		#pragma fragment frag
 		#include "UnityCG.cginc"
 			
-		StructuredBuffer<float2> positionBuffer;
+		uniform StructuredBuffer<float2> _CritterPoints;
 
 		struct vs_out {
 			float4 pos : SV_POSITION;
@@ -41,7 +41,7 @@
 		vs_out vert(uint id : SV_VertexID)
 		{
 			vs_out o;
-			o.pos = float4(positionBuffer[id], 0, 1);
+			o.pos = float4(_CritterPoints[id], 0, 1);
 			o.pos = mul(UNITY_MATRIX_VP, o.pos);
 			return o;
 		}
@@ -58,6 +58,11 @@
 		{
 			float dx = _Size / unity_OrthoParams.x;
 			float dy = _Size / unity_OrthoParams.y;
+
+			//Min size = 1 pixel
+			dx = max(dx, 1 / _ScreenParams.x);
+			dy = max(dy, 1 / _ScreenParams.y);
+
 			gs_out output;
 			output.pos = input[0].pos + float4(-dx, dy, 0, 0); output.uv = float2(0, 0); outStream.Append(output);
 			output.pos = input[0].pos + float4(dx, dy, 0, 0); output.uv = float2(1, 0); outStream.Append(output);

@@ -7,10 +7,10 @@ using System.Collections.Generic;
 
 [System.Serializable]
 public struct CritterData {
-    public Vector2 position;
     public float health;
-    public float maxConsumption;
+    public float consumption;
     public float timeDrain;
+    public float isAlive;
 }
 
 public class SimManager : Singleton<SimManager> {
@@ -26,18 +26,22 @@ public class SimManager : Singleton<SimManager> {
     public ComputeShader critterManager;
     int appendKernel;
 
+    public ComputeShader aiManager;
+    int processKernel;
+
     public EnergyField _energyField;
     public static EnergyField Energy { get { return Instance._energyField; } }
     
     private ComputeBuffer critterDrawArgs;
-    private ComputeBuffer critterPoints;
+    private ComputeBuffer critterPointsAppend;
+    private ComputeBuffer critterDataAppend;
 
     Vector2[] debugArray;
 
     const int THREADS = 1024;
     const int THREADS_X = 32;
     const int THREADS_Y = 32;
-    const int MAX_CRITTERS = 20;
+    const int MAX_CRITTERS = 10000;
 
     void Awake() 
     {
@@ -46,6 +50,7 @@ public class SimManager : Singleton<SimManager> {
         }
 
         appendKernel = critterManager.FindKernel("AppendCritter");
+        processKernel = aiManager.FindKernel("ProcessCritters");
 
         debugArray = new Vector2[MAX_CRITTERS];
     }
@@ -61,14 +66,21 @@ public class SimManager : Singleton<SimManager> {
             args[3] = 0;
             critterDrawArgs.SetData(args);
         }
-        if (critterPoints == null) {
-            critterPoints = new ComputeBuffer(MAX_CRITTERS, sizeof(float)*2, ComputeBufferType.Append);
-            critterPoints.ClearAppendBuffer();
+        if (critterPointsAppend == null) {
+            critterPointsAppend = new ComputeBuffer(MAX_CRITTERS, 8, ComputeBufferType.Append);
+            critterPointsAppend.ClearAppendBuffer();
+        }
+        if (critterDataAppend == null) {
+            critterDataAppend = new ComputeBuffer(MAX_CRITTERS, 16, ComputeBufferType.Append);
+            critterDataAppend.ClearAppendBuffer();
         }
         if (critterMat == null) {
             critterMat = new Material(critterShader);
             critterMat.hideFlags = HideFlags.HideAndDontSave;
         }
+
+        Shader.SetGlobalBuffer("_CritterPoints", critterPointsAppend);
+        Shader.SetGlobalBuffer("_CritterData", critterDataAppend);
     }
 
     void OnRenderImage(RenderTexture src, RenderTexture dst) 
@@ -77,13 +89,13 @@ public class SimManager : Singleton<SimManager> {
             return;
         CreateResources();
 
+
+
+        critterMat.SetPass(0);
         critterMat.SetTexture("_Sprite", critterSprite);
         critterMat.SetFloat("_Size", critterSize);
         critterMat.SetColor("_Color", critterColor);
-        critterMat.SetBuffer("_CritterPoints", critterPoints);
 
-        ComputeBuffer.CopyCount(critterPoints, critterDrawArgs, 0);
-        critterMat.SetPass(0);
         Graphics.DrawProceduralIndirect(MeshTopology.Points, critterDrawArgs, 0);
     }
 
@@ -91,7 +103,8 @@ public class SimManager : Singleton<SimManager> {
     private void ReleaseResources() 
     {
         if (critterDrawArgs != null) critterDrawArgs.Release(); critterDrawArgs = null;
-        if (critterPoints != null) critterPoints.Release(); critterPoints = null;
+        if (critterPointsAppend != null) critterPointsAppend.Release(); critterPointsAppend = null;
+        if (critterDataAppend != null) critterDataAppend.Release(); critterDataAppend = null;
         Object.DestroyImmediate(critterMat);
     }
 
@@ -103,8 +116,11 @@ public class SimManager : Singleton<SimManager> {
     {
         CreateResources();
         critterManager.SetFloats("NewPosition", position.x, position.y);
-        critterManager.SetBuffer(appendKernel, "Positions", critterPoints);
+        critterManager.SetBuffer(appendKernel, "Positions", critterPointsAppend);
+        critterManager.SetBuffer(appendKernel, "Data", critterDataAppend);
         critterManager.Dispatch(appendKernel, 1, 1, 1);
+        
+        ComputeBuffer.CopyCount(critterPointsAppend, critterDrawArgs, 0);
     }
 
     public void AddRandomCritter() 
