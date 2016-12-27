@@ -45,7 +45,7 @@
 			float4 frag (v2f i) : SV_Target
 			{
 				float eng = tex2D(_MainTex, i.uv);
-				eng += tex2D(_EnergySeed, i.uv) * _MaxEnergyRate * _Time.y;
+				eng += tex2D(_EnergySeed, i.uv) * _MaxEnergyRate * unity_DeltaTime.x;
 				eng = clamp(0, _MaxEnergy, eng);
 				return eng;
 			}

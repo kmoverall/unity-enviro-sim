@@ -8,19 +8,23 @@ struct CritterData {
     float isAlive;
 };
 
-AppendStructuredBuffer<float2> Positions;
-AppendStructuredBuffer<CritterData> Data;
+RWStructuredBuffer<float2> Positions;
+RWStructuredBuffer<CritterData> Data;
 float2 NewPosition;
 
 [numthreads(1,1,1)]
 void AppendCritter (uint3 id : SV_DispatchThreadID)
 {
-	Positions.Append(NewPosition);
+	int count = Positions.IncrementCounter();
+	Data.IncrementCounter();
+
+	Positions[count] = NewPosition;
 
 	CritterData dt;
 	dt.health = 100;
 	dt.consumption = 15;
-	dt.timeDrain = 8;
+	dt.timeDrain = 6;
 	dt.isAlive = 1;
-	Data.Append(dt);
+
+	Data[count] = dt;
 }

@@ -8,14 +8,33 @@ struct CritterData {
     float isAlive;
 };
 
-RWTexture2D<float4> EnergyField;
+globallycoherent RWTexture2D<float4> EnergyField;
 RWStructuredBuffer<CritterData> Data;
 RWStructuredBuffer<float2> Positions;
+StructuredBuffer<int> DrawArgs;
 
-int2 Sim_EnergyFieldSize;
+uint2 Sim_EnergyFieldSize;
+float2 Sim_EnergyCaps;
+float Unity_DeltaTime;
 
 [numthreads(1024,1,1)]
 void ProcessCritters (uint3 id : SV_DispatchThreadID)
 {
-	
+	if (id.x >= DrawArgs[0]) {
+		return;
+	}
+
+	float2 pos = Positions[id.x];
+	uint2 iPos;
+	iPos.x = round(pos.x - 0.5) + (Sim_EnergyFieldSize.x / 2);
+	iPos.y = round(pos.y - 0.5) + (Sim_EnergyFieldSize.y / 2);
+
+	CritterData specs = Data[id.x];
+
+	float energyGain = min(EnergyField[iPos], specs.consumption * Unity_DeltaTime);
+	EnergyField[iPos] -= energyGain;
+	specs.health += energyGain;
+	specs.health -= specs.timeDrain * Unity_DeltaTime;
+	specs.health = clamp(specs.health, 0, Sim_EnergyCaps.y);
+	Data[id.x] = specs;
 }

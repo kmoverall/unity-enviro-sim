@@ -4,7 +4,8 @@
 	{
 		_MainTex ("Sprite Texture", 2D) = "white" {}
 		_Size ("Size", Float) = 0.5
-		_Color ("Color", Color) = (1,1,1,1)
+		_HealthyColor ("Healthy Color", Color) = (1,1,1,1)
+	    _UnhealthyColor("Unhealthy Color", Color) = (1,1,1,1)
 	}
 
 	SubShader
@@ -33,9 +34,14 @@
 		#include "UnityCG.cginc"
 			
 		uniform StructuredBuffer<float2> _CritterPoints;
+		uniform StructuredBuffer<float4> _CritterData;
+		uniform float4 Sim_EnergyCaps;
+		float4 _HealthyColor;
+		float4 _UnhealthyColor;
 
 		struct vs_out {
 			float4 pos : SV_POSITION;
+			float4 color : COLOR;
 		};
 
 		vs_out vert(uint id : SV_VertexID)
@@ -43,12 +49,16 @@
 			vs_out o;
 			o.pos = float4(_CritterPoints[id], 0, 1);
 			o.pos = mul(UNITY_MATRIX_VP, o.pos);
+			o.color = lerp(_UnhealthyColor, _HealthyColor, _CritterData[id].x / Sim_EnergyCaps.y*0.5);
+			o.color = _CritterData[id].x;
+			o.color.a = 1;
 			return o;
 		}
 
 		struct gs_out {
 			float4 pos : SV_POSITION;
 			float2 uv : TEXCOORD0;
+			float4 color : COLOR;
 		};
 
 		float _Size;
@@ -64,20 +74,36 @@
 			dy = max(dy, 1 / _ScreenParams.y);
 
 			gs_out output;
-			output.pos = input[0].pos + float4(-dx, dy, 0, 0); output.uv = float2(0, 0); outStream.Append(output);
-			output.pos = input[0].pos + float4(dx, dy, 0, 0); output.uv = float2(1, 0); outStream.Append(output);
-			output.pos = input[0].pos + float4(-dx, -dy, 0, 0); output.uv = float2(0, 1); outStream.Append(output);
-			output.pos = input[0].pos + float4(dx, -dy, 0, 0); output.uv = float2(1, 1); outStream.Append(output);
+
+			output.pos = input[0].pos + float4(-dx, dy, 0, 0); 
+			output.uv = float2(0, 0);
+			output.color = input[0].color;
+			outStream.Append(output);
+
+			output.pos = input[0].pos + float4(dx, dy, 0, 0); 
+			output.uv = float2(1, 0);
+			output.color = input[0].color;
+			outStream.Append(output);
+
+			output.pos = input[0].pos + float4(-dx, -dy, 0, 0); 
+			output.uv = float2(0, 1);
+			output.color = input[0].color;
+			outStream.Append(output);
+
+			output.pos = input[0].pos + float4(dx, -dy, 0, 0); 
+			output.uv = float2(1, 1);
+			output.color = input[0].color;
+			outStream.Append(output);
+
 			outStream.RestartStrip();
 		}
 
 		sampler2D _Sprite;
-		fixed4 _Color;
 
 		fixed4 frag(gs_out i) : COLOR0
 		{
 			fixed4 col = tex2D(_Sprite, i.uv);
-			col *= _Color;
+			col *= i.color;
 			col.rgb *= col.a;
 			return col;
 		}

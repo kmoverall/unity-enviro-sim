@@ -38,7 +38,10 @@ public class EnergyField : MonoBehaviour {
     }
 
     void Update() {
-        Graphics.Blit(currentEnergy, currentEnergy, energyMat);
+        RenderTexture tmp = RenderTexture.GetTemporary(seedTexture.width, seedTexture.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        Graphics.Blit(currentEnergy, tmp, energyMat);
+        Graphics.Blit(tmp, currentEnergy);
+        RenderTexture.ReleaseTemporary(tmp);
     }
 
     void OnApplicationQuit()
