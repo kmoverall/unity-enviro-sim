@@ -13,9 +13,14 @@ RWStructuredBuffer<CritterData> Data;
 RWStructuredBuffer<float2> Positions;
 StructuredBuffer<int> DrawArgs;
 
-uint2 Sim_EnergyFieldSize;
+int2 Sim_EnergyFieldSize;
 float2 Sim_EnergyCaps;
 float Unity_DeltaTime;
+
+float nrand(float2 uv)
+{
+	return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+}
 
 [numthreads(1024,1,1)]
 void ProcessCritters (uint3 id : SV_DispatchThreadID)
@@ -25,16 +30,27 @@ void ProcessCritters (uint3 id : SV_DispatchThreadID)
 	}
 
 	float2 pos = Positions[id.x];
-	uint2 iPos;
-	iPos.x = round(pos.x - 0.5) + (Sim_EnergyFieldSize.x / 2);
-	iPos.y = round(pos.y - 0.5) + (Sim_EnergyFieldSize.y / 2);
+	int2 iPos;
+	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
+
+	int2 sample_L = iPos.x > 0 ? int2(-1, 0) : int2(0, 0);
+	int2 sample_R = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(1, 0) : int2(0, 0);
+	int2 sample_D = iPos.x > 0 ? int2(0, -1) : int2(0, 0);
+	int2 sample_U = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(0, 1) : int2(0, 0);
+
+	float2 gradient;
+
+	pos += gradient * Unity_DeltaTime;
+	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
 
 	CritterData specs = Data[id.x];
 
-	float energyGain = min(EnergyField[iPos], specs.consumption * Unity_DeltaTime);
+	float energyGain = min(EnergyField[iPos].r, specs.consumption * Unity_DeltaTime);
 	EnergyField[iPos] -= energyGain;
 	specs.health += energyGain;
 	specs.health -= specs.timeDrain * Unity_DeltaTime;
 	specs.health = clamp(specs.health, 0, Sim_EnergyCaps.y);
+
 	Data[id.x] = specs;
+	Positions[id.x] = pos;
 }

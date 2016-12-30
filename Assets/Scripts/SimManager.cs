@@ -51,6 +51,7 @@ public class SimManager : Singleton<SimManager> {
 
         appendKernel = critterManager.FindKernel("AppendCritter");
         processKernel = aiManager.FindKernel("ProcessCritters");
+        Shader.SetGlobalVector("Sim_EnergyCaps", new Vector4(Energy.maxEnergy, maxCritterHealth,0,0));
     }
 
     void CreateResources() 
@@ -68,19 +69,19 @@ public class SimManager : Singleton<SimManager> {
             critterPoints = new ComputeBuffer(MAX_CRITTERS, 8, ComputeBufferType.Counter);
             critterPoints.ClearAppendBuffer();
             critterPoints.SetCounterValue(0);
+            Shader.SetGlobalBuffer("_CritterPoints", critterPoints);
         }
         if (critterData == null) {
             critterData = new ComputeBuffer(MAX_CRITTERS, 16, ComputeBufferType.Counter);
             critterData.ClearAppendBuffer();
             critterData.SetCounterValue(0);
+            Shader.SetGlobalBuffer("_CritterData", critterData);
         }
         if (critterMat == null) {
             critterMat = new Material(critterShader);
             critterMat.hideFlags = HideFlags.HideAndDontSave;
         }
 
-        Shader.SetGlobalBuffer("_CritterPoints", critterPoints);
-        Shader.SetGlobalBuffer("_CritterData", critterData);
     }
 
     void Update()
@@ -89,7 +90,7 @@ public class SimManager : Singleton<SimManager> {
             return;
         CreateResources();
 
-        Shader.SetGlobalVector("Sim_EnergyCaps", new Vector4(Energy.maxEnergy, maxCritterHealth));
+        Shader.SetGlobalVector("Sim_EnergyCaps", new Vector4(Energy.maxEnergy, maxCritterHealth, 0, 0));
 
         aiManager.SetInts("Sim_EnergyFieldSize", Energy.seedTexture.width, Energy.seedTexture.height);
         aiManager.SetFloats("Sim_EnergyCaps", Energy.maxEnergy, maxCritterHealth);

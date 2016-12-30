@@ -33,8 +33,15 @@
 		#pragma fragment frag
 		#include "UnityCG.cginc"
 			
+		struct CritterData {
+			float health;
+			float consumption;
+			float timeDrain;
+			float isAlive;
+		};
+
 		uniform StructuredBuffer<float2> _CritterPoints;
-		uniform StructuredBuffer<float4> _CritterData;
+		uniform StructuredBuffer<CritterData> _CritterData;
 		uniform float4 Sim_EnergyCaps;
 		float4 _HealthyColor;
 		float4 _UnhealthyColor;
@@ -49,8 +56,7 @@
 			vs_out o;
 			o.pos = float4(_CritterPoints[id], 0, 1);
 			o.pos = mul(UNITY_MATRIX_VP, o.pos);
-			o.color = lerp(_UnhealthyColor, _HealthyColor, _CritterData[id].x / Sim_EnergyCaps.y*0.5);
-			o.color = _CritterData[id].x;
+			o.color = lerp(_UnhealthyColor, _HealthyColor, _CritterData[id].health / Sim_EnergyCaps.y*0.5);
 			o.color.a = 1;
 			return o;
 		}
