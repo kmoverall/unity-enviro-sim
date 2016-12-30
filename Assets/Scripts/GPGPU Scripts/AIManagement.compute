@@ -17,9 +17,52 @@ int2 Sim_EnergyFieldSize;
 float2 Sim_EnergyCaps;
 float Unity_DeltaTime;
 
-float nrand(float2 uv)
+float2 rand_2(in float2 uv)
 {
-	return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+    float noiseX = (frac(sin(dot(uv, float2(12.9898,78.233)      )) * 43758.5453));
+    float noiseY = (frac(sin(dot(uv, float2(12.9898,78.233) * 2.0)) * 43758.5453));
+    return float2(noiseX, noiseY) * 0.004;
+}
+
+float2 DecideDirection(float2 pos, int2 iPos)
+{
+	int2 sample_L = iPos.x > 0 ? int2(-1, 0) : int2(0, 0);
+	int2 sample_R = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(1, 0) : int2(0, 0);
+	int2 sample_D = iPos.x > 0 ? int2(0, -1) : int2(0, 0);
+	int2 sample_U = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(0, 1) : int2(0, 0);
+
+	float2 gradient;
+
+	gradient.x = 2 * EnergyField[iPos + sample_R].r + EnergyField[iPos + sample_R + sample_U].r + EnergyField[iPos + sample_R + sample_D].r;
+	gradient.x -= 2 * EnergyField[iPos + sample_L].r + EnergyField[iPos + sample_L + sample_U].r + EnergyField[iPos + sample_L + sample_D].r;
+
+	gradient.y = 2 * EnergyField[iPos + sample_U].r + EnergyField[iPos + sample_U + sample_R].r + EnergyField[iPos + sample_D + sample_L].r;
+	gradient.y -= 2 * EnergyField[iPos + sample_D].r + EnergyField[iPos + sample_D + sample_R].r + EnergyField[iPos + sample_D + sample_L].r;
+
+	if (!any(gradient))
+		gradient = rand_2(pos) * 2 - 1;
+	gradient = normalize(gradient);
+
+	return gradient;
+}
+
+float ShouldMove(float2 pos, int2 iPos)
+{
+	int2 sample_L = iPos.x > 0 ? int2(-1, 0) : int2(0, 0);
+	int2 sample_R = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(1, 0) : int2(0, 0);
+	int2 sample_D = iPos.x > 0 ? int2(0, -1) : int2(0, 0);
+	int2 sample_U = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(0, 1) : int2(0, 0);
+
+	float maxNeighbor = EnergyField[iPos + sample_R].r;
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_L].r);
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_U].r);
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_D].r);
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_U + sample_R].r);
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_U + sample_L].r);
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_D + sample_R].r);
+	maxNeighbor = max(maxNeighbor, EnergyField[iPos + sample_D + sample_L].r);
+
+	return maxNeighbor - EnergyField[iPos].r;
 }
 
 [numthreads(1024,1,1)]
@@ -33,14 +76,9 @@ void ProcessCritters (uint3 id : SV_DispatchThreadID)
 	int2 iPos;
 	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
 
-	int2 sample_L = iPos.x > 0 ? int2(-1, 0) : int2(0, 0);
-	int2 sample_R = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(1, 0) : int2(0, 0);
-	int2 sample_D = iPos.x > 0 ? int2(0, -1) : int2(0, 0);
-	int2 sample_U = iPos.x < Sim_EnergyFieldSize.x - 1 ? int2(0, 1) : int2(0, 0);
+	float2 direction = DecideDirection(pos, iPos);
 
-	float2 gradient;
-
-	pos += gradient * Unity_DeltaTime;
+	pos += direction * Unity_DeltaTime;
 	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
 
 	CritterData specs = Data[id.x];

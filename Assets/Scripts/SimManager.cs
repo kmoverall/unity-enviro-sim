@@ -1,9 +1,5 @@
 ﻿/// Note: that the more namespaces we use the more loading this screen has to do
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
-using System.Collections;
-using System.Collections.Generic;
 
 [System.Serializable]
 public struct CritterData {
