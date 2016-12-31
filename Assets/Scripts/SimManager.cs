@@ -39,6 +39,10 @@ public class SimManager : Singleton<SimManager> {
     const int THREADS_Y = 32;
     const int MAX_CRITTERS = 10000;
 
+    
+    int _critterCount = 0;
+    public static int critterCount { get { return Instance._critterCount; } }
+
     void Awake() 
     {
         if (_energyField == null) {
@@ -141,6 +145,11 @@ public class SimManager : Singleton<SimManager> {
         critterManager.Dispatch(appendKernel, 1, 1, 1);
         
         ComputeBuffer.CopyCount(critterPoints, critterDrawArgs, 0);
+
+        if (_critterCount < MAX_CRITTERS)
+        {
+            _critterCount++;
+        }
     }
 
     public void AddRandomCritter() 
