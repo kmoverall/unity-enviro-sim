@@ -34,14 +34,14 @@ float2 DecideDirection(float2 pos, int2 iPos)
 
 	float2 gradient;
 
-	gradient.x = 2 * EnergyField[iPos + sample_R].r + EnergyField[iPos + sample_R + sample_U].r + EnergyField[iPos + sample_R + sample_D].r;
-	gradient.x -= 2 * EnergyField[iPos + sample_L].r + EnergyField[iPos + sample_L + sample_U].r + EnergyField[iPos + sample_L + sample_D].r;
+	gradient.x = 10 * EnergyField[iPos + sample_R].r + 3 * EnergyField[iPos + sample_R + sample_U].r + 3 * EnergyField[iPos + sample_R + sample_D].r;
+	gradient.x -= 10 * EnergyField[iPos + sample_L].r + 3 * EnergyField[iPos + sample_L + sample_U].r + 3 * EnergyField[iPos + sample_L + sample_D].r;
 
-	gradient.y = 2 * EnergyField[iPos + sample_U].r + EnergyField[iPos + sample_U + sample_R].r + EnergyField[iPos + sample_D + sample_L].r;
-	gradient.y -= 2 * EnergyField[iPos + sample_D].r + EnergyField[iPos + sample_D + sample_R].r + EnergyField[iPos + sample_D + sample_L].r;
+	gradient.y = 10 * EnergyField[iPos + sample_U].r + 3 * EnergyField[iPos + sample_U + sample_R].r + 3 * EnergyField[iPos + sample_D + sample_L].r;
+	gradient.y -= 10 * EnergyField[iPos + sample_D].r + 3 * EnergyField[iPos + sample_D + sample_R].r + 3 * EnergyField[iPos + sample_D + sample_L].r;
 
 	if (!any(gradient))
-		gradient = rand_2(pos);
+		gradient = rand_2(pos) * 2 - 1;
 	gradient = normalize(gradient);
 
 	return gradient;
