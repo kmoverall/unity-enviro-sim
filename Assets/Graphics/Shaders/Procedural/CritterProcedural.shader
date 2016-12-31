@@ -57,7 +57,7 @@
 			o.pos = float4(_CritterPoints[id], 0, 1);
 			o.pos = mul(UNITY_MATRIX_VP, o.pos);
 			o.color = lerp(_UnhealthyColor, _HealthyColor, _CritterData[id].health / Sim_EnergyCaps.y*0.5);
-			o.color.a = 1;
+			o.color.a = _CritterData[id].isAlive;
 			return o;
 		}
 

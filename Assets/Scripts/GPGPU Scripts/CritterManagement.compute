@@ -22,8 +22,8 @@ void AppendCritter (uint3 id : SV_DispatchThreadID)
 
 	CritterData dt;
 	dt.health = 100;
-	dt.consumption = 15;
-	dt.timeDrain = 6;
+	dt.consumption = 25;
+	dt.timeDrain = 10;
 	dt.isAlive = 1;
 
 	Data[count] = dt;
