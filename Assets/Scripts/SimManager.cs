@@ -159,4 +159,12 @@ public class SimManager : Singleton<SimManager> {
                         Random.Range(-Energy.seedTexture.height / 2.0f, Energy.seedTexture.height / 2.0f)
                   ));
     }
+
+    public void AddCritters(int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            AddRandomCritter();
+        }
+    }
 }
