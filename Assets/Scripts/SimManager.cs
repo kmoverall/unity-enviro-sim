@@ -7,6 +7,9 @@ public struct CritterData {
     public float consumption;
     public float timeDrain;
     public float isAlive;
+    public float timeSinceDecision;
+    public Vector2 movementDirection;
+    public float padding;
 }
 
 public class SimManager : Singleton<SimManager> {
@@ -17,6 +20,7 @@ public class SimManager : Singleton<SimManager> {
     public Color healthyCritterColor;
     public Color unhealthyCritterColor;
     public float maxCritterHealth;
+    public float decisionFrequency;
 
     public Shader critterShader;
     Material critterMat;
@@ -72,7 +76,7 @@ public class SimManager : Singleton<SimManager> {
             Shader.SetGlobalBuffer("_CritterPoints", critterPoints);
         }
         if (critterData == null) {
-            critterData = new ComputeBuffer(MAX_CRITTERS, 16, ComputeBufferType.Counter);
+            critterData = new ComputeBuffer(MAX_CRITTERS, 32, ComputeBufferType.Counter);
             critterData.ClearAppendBuffer();
             critterData.SetCounterValue(0);
             Shader.SetGlobalBuffer("_CritterData", critterData);
@@ -96,6 +100,7 @@ public class SimManager : Singleton<SimManager> {
         aiManager.SetFloats("Sim_EnergyCaps", Energy.maxEnergy, maxCritterHealth);
         aiManager.SetFloat("Sim_MaxCritterHealth", maxCritterHealth);
         aiManager.SetFloat("Unity_DeltaTime", Time.deltaTime);
+        aiManager.SetFloat("Sim_DecisionFreq", decisionFrequency);
 
         aiManager.SetTexture(processKernel, "EnergyField", Energy.currentEnergy);
         aiManager.SetBuffer(processKernel, "Positions", critterPoints);

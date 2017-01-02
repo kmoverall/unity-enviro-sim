@@ -6,6 +6,9 @@ struct CritterData {
     float consumption;
     float timeDrain;
     float isAlive;
+	float timeSinceDecision;
+	float2 movementDirection;
+	float padding;
 };
 
 globallycoherent RWTexture2D<float4> EnergyField;
@@ -17,20 +20,22 @@ int2 Sim_EnergyFieldSize;
 //x is the cap on energy in the field, y is the cap on critter energy
 float2 Sim_EnergyCaps;
 float Unity_DeltaTime;
+float Sim_DecisionFreq;
 
-float rand_1(in float2 uv)
+//Xorshift32 PRNG, altered to return a float [0-1]
+//https://en.wikipedia.org/wiki/Xorshift
+float rand_range(inout uint seed)
 {
-	float noise = (frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453));
-	return noise;
-}
-float2 rand_2(in float2 uv)
-{
-    float noiseX = (frac(sin(dot(uv, float2(12.9898,78.233)      )) * 43758.5453));
-    float noiseY = (frac(sin(dot(uv, float2(12.9898,78.233) * 2.0)) * 43758.5453));
-    return float2(noiseX, noiseY);
+	uint x = seed;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	seed = x;
+
+	return x / 4294967295.0f;
 }
 
-int2 rand_max_position(int2 a, int2 b, float2 seed)
+int2 rand_max_position(int2 a, int2 b, inout uint seed)
 {
 	
 	float x = EnergyField[a].r;
@@ -46,7 +51,7 @@ int2 rand_max_position(int2 a, int2 b, float2 seed)
 	}
 	else
 	{
-		float coinFlip = round(rand_1(seed));
+		float coinFlip = round(rand_range(seed));
 		return coinFlip * a + (1-coinFlip) * b;
 	}
 }
@@ -58,14 +63,17 @@ float2 DecideDirection(float2 pos, int2 iPos)
 	int2 sample_D = iPos.y > 0 ? int2(0, -1) : int2(0, 0);
 	int2 sample_U = iPos.y < Sim_EnergyFieldSize.y - 1 ? int2(0, 1) : int2(0, 0);
 
-	int2 newPos = rand_max_position(iPos, iPos + sample_L, pos);
-	newPos = rand_max_position(newPos, iPos + sample_R, pos + float2(1,0));
-	newPos = rand_max_position(newPos, iPos + sample_D, pos + float2(2, 0));
-	newPos = rand_max_position(newPos, iPos + sample_U, pos + float2(3, 0));
-	newPos = rand_max_position(newPos, iPos + sample_R + sample_U, pos + float2(4, 0));
-	newPos = rand_max_position(newPos, iPos + sample_L + sample_U, pos + float2(5, 0));
-	newPos = rand_max_position(newPos, iPos + sample_R + sample_D, pos + float2(6, 0));
-	newPos = rand_max_position(newPos, iPos + sample_L + sample_D, pos + float2(7, 0));
+	uint seed = iPos.x + iPos.y;
+	//seed can't be 0
+	seed = seed == 0 ? seed + 1 : seed;
+	int2 newPos = rand_max_position(iPos, iPos + sample_L, seed);
+	newPos = rand_max_position(newPos, iPos + sample_R, seed);
+	newPos = rand_max_position(newPos, iPos + sample_D, seed);
+	newPos = rand_max_position(newPos, iPos + sample_U, seed);
+	newPos = rand_max_position(newPos, iPos + sample_R + sample_U, seed);
+	newPos = rand_max_position(newPos, iPos + sample_L + sample_U, seed);
+	newPos = rand_max_position(newPos, iPos + sample_R + sample_D, seed);
+	newPos = rand_max_position(newPos, iPos + sample_L + sample_D, seed);
 
 	return newPos - iPos;
 }
@@ -73,24 +81,29 @@ float2 DecideDirection(float2 pos, int2 iPos)
 [numthreads(1024,1,1)]
 void ProcessCritters (uint3 id : SV_DispatchThreadID)
 {
-	if (id.x >= DrawArgs[0]) {
+	if (id.x >= DrawArgs[0] || !Data[id.x].isAlive) {
 		return;
 	}
 
-	if (!Data[id.x].isAlive) {
-		return;
-	}
+	CritterData specs = Data[id.x];
 
 	float2 pos = Positions[id.x];
 	int2 iPos;
 	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
 
-	float2 direction = DecideDirection(pos, iPos);
-	pos += direction * Unity_DeltaTime;
-	pos = clamp(pos, -Sim_EnergyFieldSize/2.0f, Sim_EnergyFieldSize/2.0f);
-	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
+	if (specs.timeSinceDecision > Sim_DecisionFreq)
+	{
+		specs.movementDirection = DecideDirection(pos, iPos);
+		specs.timeSinceDecision = 0;
+	}
+	else
+	{
+		specs.timeSinceDecision += Unity_DeltaTime;
+	}
 
-	CritterData specs = Data[id.x];
+	pos += specs.movementDirection * Unity_DeltaTime;
+	pos = clamp(pos, -Sim_EnergyFieldSize / 2.0f, Sim_EnergyFieldSize / 2.0f);
+	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
 
 	float energyGain = min(EnergyField[iPos].r, specs.consumption * Unity_DeltaTime);
 	EnergyField[iPos] -= energyGain;

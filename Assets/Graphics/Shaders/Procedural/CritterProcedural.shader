@@ -38,6 +38,9 @@
 			float consumption;
 			float timeDrain;
 			float isAlive;
+			float timeSinceDecision;
+			float2 movementDirection;
+			float padding;
 		};
 
 		uniform StructuredBuffer<float2> _CritterPoints;
