@@ -9,7 +9,7 @@ public struct CritterData {
     public float isAlive;
     public float timeSinceDecision;
     public Vector2 movementDirection;
-    public float padding;
+    public float speed;
 }
 
 public class SimManager : Singleton<SimManager> {
@@ -100,6 +100,7 @@ public class SimManager : Singleton<SimManager> {
         aiManager.SetFloats("Sim_EnergyCaps", Energy.maxEnergy, maxCritterHealth);
         aiManager.SetFloat("Sim_MaxCritterHealth", maxCritterHealth);
         aiManager.SetFloat("Unity_DeltaTime", Time.deltaTime);
+        aiManager.SetInt("Unity_Time", (int)(Time.realtimeSinceStartup * 10000));
         aiManager.SetFloat("Sim_DecisionFreq", decisionFrequency);
 
         aiManager.SetTexture(processKernel, "EnergyField", Energy.currentEnergy);

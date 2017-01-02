@@ -8,7 +8,7 @@ struct CritterData {
     float isAlive;
 	float timeSinceDecision;
 	float2 movementDirection;
-	float padding;
+	float speed;
 };
 
 RWStructuredBuffer<float2> Positions;
@@ -30,8 +30,7 @@ void AppendCritter (uint3 id : SV_DispatchThreadID)
 	dt.isAlive = 1;
 	dt.timeSinceDecision = 2056;
 	dt.movementDirection = float2(0,0);
-
-	dt.padding = 0;
+	dt.speed = 1;
 
 	Data[count] = dt;
 }

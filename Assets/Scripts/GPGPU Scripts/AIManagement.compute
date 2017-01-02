@@ -8,7 +8,7 @@ struct CritterData {
     float isAlive;
 	float timeSinceDecision;
 	float2 movementDirection;
-	float padding;
+	float speed;
 };
 
 globallycoherent RWTexture2D<float4> EnergyField;
@@ -20,6 +20,7 @@ int2 Sim_EnergyFieldSize;
 //x is the cap on energy in the field, y is the cap on critter energy
 float2 Sim_EnergyCaps;
 float Unity_DeltaTime;
+uint Unity_Time;
 float Sim_DecisionFreq;
 
 //Xorshift32 PRNG, altered to return a float [0-1]
@@ -63,16 +64,16 @@ float2 DecideDirection(float2 pos, int2 iPos)
 	int2 sample_D = iPos.y > 0 ? int2(0, -1) : int2(0, 0);
 	int2 sample_U = iPos.y < Sim_EnergyFieldSize.y - 1 ? int2(0, 1) : int2(0, 0);
 
-	uint seed = iPos.x + iPos.y;
+	uint seed = iPos.x ^ iPos.y ^ (Unity_Time ^ (Unity_Time << 13) ^ (Unity_Time >> 17));
 	//seed can't be 0
 	seed = seed == 0 ? seed + 1 : seed;
 	int2 newPos = rand_max_position(iPos, iPos + sample_L, seed);
 	newPos = rand_max_position(newPos, iPos + sample_R, seed);
 	newPos = rand_max_position(newPos, iPos + sample_D, seed);
 	newPos = rand_max_position(newPos, iPos + sample_U, seed);
-	newPos = rand_max_position(newPos, iPos + sample_R + sample_U, seed);
 	newPos = rand_max_position(newPos, iPos + sample_L + sample_U, seed);
 	newPos = rand_max_position(newPos, iPos + sample_R + sample_D, seed);
+	newPos = rand_max_position(newPos, iPos + sample_R + sample_U, seed);
 	newPos = rand_max_position(newPos, iPos + sample_L + sample_D, seed);
 
 	return newPos - iPos;
@@ -101,12 +102,14 @@ void ProcessCritters (uint3 id : SV_DispatchThreadID)
 		specs.timeSinceDecision += Unity_DeltaTime;
 	}
 
-	pos += specs.movementDirection * Unity_DeltaTime;
+	pos += specs.movementDirection * Unity_DeltaTime * specs.speed;
 	pos = clamp(pos, -Sim_EnergyFieldSize / 2.0f, Sim_EnergyFieldSize / 2.0f);
 	iPos = round(pos - 0.5) + (Sim_EnergyFieldSize.xy / 2);
 
 	float energyGain = min(EnergyField[iPos].r, specs.consumption * Unity_DeltaTime);
+
 	EnergyField[iPos] -= energyGain;
+
 	specs.health += energyGain;
 	specs.health -= specs.timeDrain * Unity_DeltaTime;
 	specs.health = clamp(specs.health, 0, Sim_EnergyCaps.y);
